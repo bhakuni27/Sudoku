@@ -35,7 +35,6 @@ RESET_BUTTON = pygame.Rect(LEFT_PADDING, HEIGHT - 50, 100, 40)
 SOLVE_BUTTON = pygame.Rect(WIDTH - LEFT_PADDING - 100, HEIGHT - 50, 100, 40)
 MENU_BUTTON = pygame.Rect(WIDTH // 2 - 50, HEIGHT - 50, 100, 40)
     
-
 # Setup Game Window
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Sudoku")
@@ -52,6 +51,8 @@ sol_check = False
 final_time = 0
 start_time = 0
 in_main_menu = True
+hint_cells = set()  # cells revealed via hint
+hints_used = 0
 
 # Utility Functions
 def get_clicked_cell(pos):
@@ -173,11 +174,46 @@ def draw_numbers():
                 WIN.blit(text, (x, y))
 
 def draw_selection():
-    if selected_cell:
-        row, col = selected_cell
-        x = LEFT_PADDING + col * CELL_SIZE
+    """Highlight the selected cell's row, column, and subgrid."""
+    if not selected_cell:
+        return
+
+    row, col = selected_cell
+
+    # Create a transparent surface
+    hl_surf = pygame.Surface((CELL_SIZE, CELL_SIZE))
+    hl_surf.set_alpha(60)
+    hl_surf.fill(LIGHT_BLUE)
+
+    # Highlight row
+    for j in range(GRID_SIZE):
+        x = LEFT_PADDING + j * CELL_SIZE
         y = TOP_PADDING + row * CELL_SIZE
-        pygame.draw.rect(WIN, LIGHT_BLUE, (x, y, CELL_SIZE, CELL_SIZE), 3)
+        WIN.blit(hl_surf, (x, y))
+
+    # Highlight column
+    for i in range(GRID_SIZE):
+        if i == row:
+            continue  # Already highlighted in row
+        x = LEFT_PADDING + col * CELL_SIZE
+        y = TOP_PADDING + i * CELL_SIZE
+        WIN.blit(hl_surf, (x, y))
+
+    # Highlight 3x3 box
+    box_start_row = (row // 3) * 3
+    box_start_col = (col // 3) * 3
+    for i in range(box_start_row, box_start_row + 3):
+        for j in range(box_start_col, box_start_col + 3):
+            if i == row or j == col:
+                continue  # Already highlighted
+            x = LEFT_PADDING + j * CELL_SIZE
+            y = TOP_PADDING + i * CELL_SIZE
+            WIN.blit(hl_surf, (x, y))
+
+    # Draw a strong border around the selected cell
+    x = LEFT_PADDING + col * CELL_SIZE
+    y = TOP_PADDING + row * CELL_SIZE
+    pygame.draw.rect(WIN, LIGHT_BLUE, (x, y, CELL_SIZE, CELL_SIZE), 3)
 
 def draw_buttons(): 
     pygame.draw.rect(WIN, GREEN, RESET_BUTTON)
@@ -188,14 +224,18 @@ def draw_buttons():
     WIN.blit(FONT_SMALL.render("Solve", True, WHITE), (SOLVE_BUTTON.x + 20, SOLVE_BUTTON.y + 10))
     WIN.blit(FONT_SMALL.render("Menu", True, WHITE), (MENU_BUTTON.x + 20, MENU_BUTTON.y + 10))
 
-def draw_mistakes():
-    text = FONT_SMALL.render(f"Mistakes: {mistakes}/{MAX_MISTAKES}", True, RED)
-    WIN.blit(text, (WIDTH - 170, 10))
-
-def draw_timer():
+def draw_stats():
+    # Timer
     elapsed = (pygame.time.get_ticks() - start_time) // 1000 if not sol_check and not game_over else final_time
     mins, secs = divmod(elapsed, 60)
     WIN.blit(FONT_SMALL.render(f"\u23F1  {mins:02}:{secs:02}", True, BLACK), (LEFT_PADDING, 10))
+
+    # Hints
+    BULB_BUTTON = pygame.Rect(WIDTH - 170, 10, 32, 32)
+    WIN.blit(FONT_SMALL.render(f"💡", True, BLACK), (BULB_BUTTON.x, BULB_BUTTON.y))
+    
+    # Mistakes
+    WIN.blit(FONT_SMALL.render(f"\u274C {mistakes}/{MAX_MISTAKES}", True, RED), (WIDTH - 110, 10))
 
 def draw_main_menu():
     WIN.fill(WHITE)
@@ -219,11 +259,10 @@ def draw_main_menu():
 
 def draw_window():
     WIN.fill(WHITE)
-    draw_timer()
-    draw_mistakes()
+    draw_stats()
     draw_grid()
-    draw_numbers()
     draw_selection()
+    draw_numbers()
     draw_buttons()
     
     if game_over:
