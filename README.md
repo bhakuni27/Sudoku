@@ -3,21 +3,31 @@
 This is a Sudoku puzzle game built with **Python** and **Pygame**. It offers multiple difficulty levels, a built-in backtracking solver, limited hint support, and mistake tracking. A real-time timer monitors your progress as you solve the puzzle on a classic 9×9 Sudoku board.
 
 ---
-
 ## Screenshots & Features
-
-### Main Menu
-![Main Menu](screenshots/main_menu.png)
-
-### Gameplay Interface
-![Gameplay](screenshots/gameplay.png)
-
-### Win Screen
-![Result Screen](screenshots/result_screen.png)
-
-### Game Over
-
-![Game Over](screenshots/game_over.png)
+<div align="center">
+<table>
+  <tr>
+    <td align="center">
+      <img src="screenshots/main_menu.png" alt="Main Menu" width="450"/><br/>
+      <strong>Main Menu</strong>
+    </td>
+    <td align="center">
+      <img src="screenshots/gameplay.png" alt="Gameplay" width="450"/><br/>
+      <strong>Gameplay</strong>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="screenshots/result_screen.png" alt="Result Screen" width="450"/><br/>
+      <strong>Win Screen</strong>
+    </td>
+    <td align="center">
+      <img src="screenshots/game_over.png" alt="Game Over" width="450"/><br/>
+      <strong>Game Over</strong>
+    </td>
+  </tr>
+</table>
+</div>
 
 **Key Features:**
 - **Difficulty Selection**: Choose between **Easy**, **Medium**, or **Hard** puzzles from the main menu.
