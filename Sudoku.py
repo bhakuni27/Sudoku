@@ -9,6 +9,7 @@ WIDTH, HEIGHT = 600, 650
 GRID_SIZE = 9
 CELL_SIZE = (WIDTH - 60) // GRID_SIZE
 MAX_MISTAKES = 5
+MAX_HINTS = 5
 
 # Colours
 WHITE = (255, 255, 255)
@@ -19,6 +20,7 @@ LIGHT_BLUE = (173, 216, 230)
 GREEN = (0, 200, 0)
 DARK_BLUE = (0, 0, 200)
 GRAY = (120, 120, 120)
+YELLOW = (255, 215, 0)
 
 # Grid Layout
 LEFT_PADDING = 30
@@ -34,6 +36,7 @@ FONT_SMALL = pygame.font.SysFont("Segoe UI Emoji", 24)
 RESET_BUTTON = pygame.Rect(LEFT_PADDING, HEIGHT - 50, 100, 40)
 SOLVE_BUTTON = pygame.Rect(WIDTH - LEFT_PADDING - 100, HEIGHT - 50, 100, 40)
 MENU_BUTTON = pygame.Rect(WIDTH // 2 - 50, HEIGHT - 50, 100, 40)
+HINT_BUTTON = pygame.Rect(WIDTH - 220, 10, 80, 30)
     
 # Setup Game Window
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -46,13 +49,14 @@ user_board = []
 selected_cell = None
 invalid_cells = set()
 mistakes = 0
-game_over = False
+solved = False
 sol_check = False
 final_time = 0
 start_time = 0
 in_main_menu = True
-hint_cells = set()  # cells revealed via hint
+hint_cells = set()
 hints_used = 0
+
 
 # Utility Functions
 def get_clicked_cell(pos):
@@ -147,6 +151,15 @@ def generate_board(difficulty):
     remove_numbers(board_copy, difficulty_levels[difficulty])
     return board_copy
 
+def check_solved(bd):
+    """Check if the board is full and correctly filled."""
+    for r in range(GRID_SIZE):
+        for c in range(GRID_SIZE):
+            val = bd[r][c]
+            if val == 0 or not check_valid(bd, r, c, val):
+                return False
+    return True
+
 # Drawing Functions
 def draw_grid():
     for i in range(GRID_SIZE + 1):
@@ -163,6 +176,8 @@ def draw_numbers():
             if val != 0:
                 if (i, j) in invalid_cells:
                     color = RED
+                elif (i, j) in hint_cells:
+                    color = YELLOW
                 elif board[i][j] == 0:
                     color = BLUE
                 else:
@@ -180,37 +195,32 @@ def draw_selection():
 
     row, col = selected_cell
 
-    # Create a transparent surface
     hl_surf = pygame.Surface((CELL_SIZE, CELL_SIZE))
     hl_surf.set_alpha(60)
     hl_surf.fill(LIGHT_BLUE)
 
-    # Highlight row
     for j in range(GRID_SIZE):
         x = LEFT_PADDING + j * CELL_SIZE
         y = TOP_PADDING + row * CELL_SIZE
         WIN.blit(hl_surf, (x, y))
 
-    # Highlight column
     for i in range(GRID_SIZE):
         if i == row:
-            continue  # Already highlighted in row
+            continue 
         x = LEFT_PADDING + col * CELL_SIZE
         y = TOP_PADDING + i * CELL_SIZE
         WIN.blit(hl_surf, (x, y))
 
-    # Highlight 3x3 box
     box_start_row = (row // 3) * 3
     box_start_col = (col // 3) * 3
     for i in range(box_start_row, box_start_row + 3):
         for j in range(box_start_col, box_start_col + 3):
             if i == row or j == col:
-                continue  # Already highlighted
+                continue 
             x = LEFT_PADDING + j * CELL_SIZE
             y = TOP_PADDING + i * CELL_SIZE
             WIN.blit(hl_surf, (x, y))
 
-    # Draw a strong border around the selected cell
     x = LEFT_PADDING + col * CELL_SIZE
     y = TOP_PADDING + row * CELL_SIZE
     pygame.draw.rect(WIN, LIGHT_BLUE, (x, y, CELL_SIZE, CELL_SIZE), 3)
@@ -226,13 +236,12 @@ def draw_buttons():
 
 def draw_stats():
     # Timer
-    elapsed = (pygame.time.get_ticks() - start_time) // 1000 if not sol_check and not game_over else final_time
+    elapsed = (pygame.time.get_ticks() - start_time) // 1000 if not sol_check and not solved and not mistakes == MAX_MISTAKES else final_time
     mins, secs = divmod(elapsed, 60)
     WIN.blit(FONT_SMALL.render(f"\u23F1  {mins:02}:{secs:02}", True, BLACK), (LEFT_PADDING, 10))
 
     # Hints
-    BULB_BUTTON = pygame.Rect(WIDTH - 170, 10, 32, 32)
-    WIN.blit(FONT_SMALL.render(f"💡", True, BLACK), (BULB_BUTTON.x, BULB_BUTTON.y))
+    WIN.blit(FONT_SMALL.render(f"💡 {hints_used}/{MAX_HINTS}", True, YELLOW), (HINT_BUTTON.x , HINT_BUTTON.y))
     
     # Mistakes
     WIN.blit(FONT_SMALL.render(f"\u274C {mistakes}/{MAX_MISTAKES}", True, RED), (WIDTH - 110, 10))
@@ -265,20 +274,39 @@ def draw_window():
     draw_numbers()
     draw_buttons()
     
-    if game_over:
+    if mistakes == MAX_MISTAKES:
         overlay = pygame.Surface((GRID_WIDTH + 8, GRID_HEIGHT + 8))
         overlay.set_alpha(180)
         overlay.fill(WHITE)
         WIN.blit(overlay, (LEFT_PADDING - 2, TOP_PADDING - 2))
         msg = FONT_TITLE.render("Game Over!", True, RED)
         WIN.blit(msg, (WIDTH // 2 - msg.get_width() // 2, HEIGHT // 2 - 25))
+
+    if solved:
+        overlay = pygame.Surface((GRID_WIDTH + 8, GRID_HEIGHT + 8))
+        overlay.set_alpha(227)
+        overlay.fill(WHITE)
+        WIN.blit(overlay, (LEFT_PADDING - 2, TOP_PADDING - 2))
+    
+        msg = FONT_TITLE.render("Congratulations!", True, GREEN)
+        WIN.blit(msg, (WIDTH // 2 - msg.get_width() // 2, HEIGHT // 2 - 100))
+    
+        mins, secs = divmod(final_time, 60)
+        stats_lines = [
+            f"Time: {mins:02}:{secs:02}",
+            f"Mistakes: {mistakes}",
+            f"Hints used: {hints_used}"
+        ]
+        for idx, line in enumerate(stats_lines):
+            stat_text = FONT_MAIN.render(line, True, BLACK)
+            WIN.blit(stat_text, (WIDTH // 2 - stat_text.get_width() // 2, HEIGHT // 2 - 10 + 40 * idx))
         
     pygame.display.update()
 
 # Game Actions
 def handle_reset():
     """Handles the reset logic when the reset button is clicked."""
-    global selected_cell, mistakes, game_over, sol_check, final_time, start_time
+    global selected_cell, mistakes, hints_used, solved, sol_check, final_time, start_time
 
     for i in range(GRID_SIZE):
         for j in range(GRID_SIZE):
@@ -288,7 +316,9 @@ def handle_reset():
     selected_cell = None
     invalid_cells.clear()
     mistakes = 0
-    game_over = False
+    hint_cells.clear()
+    hints_used = 0
+    solved = False
     sol_check = False
     final_time = 0
     start_time = pygame.time.get_ticks()
@@ -307,21 +337,45 @@ def handle_solve():
         sol_check = True
         final_time = (pygame.time.get_ticks() - start_time) // 1000
 
+def handle_hint():
+    """Reveals a correct number in a random empty cell."""
+    global hints_used
+
+    if hints_used == MAX_HINTS:
+        return
+
+    empty = [(i, j) for i in range(GRID_SIZE) for j in range(GRID_SIZE)
+             if board[i][j] == 0 and user_board[i][j] == 0]
+
+    if not empty:
+        return
+
+    # Solve full board to get correct values
+    solved = [row[:] for row in board]
+    if solve(solved):
+        r, c = random.choice(empty)
+        user_board[r][c] = solved[r][c]
+        hint_cells.add((r, c))
+        hints_used += 1
+
+
 def start_new_game(difficulty):
-    global board, user_board, selected_cell, mistakes, game_over, sol_check, final_time, start_time
+    global board, user_board, selected_cell, mistakes, hints_used, solved, sol_check, final_time, start_time
 
     board = generate_board(difficulty)
     user_board = [row[:] for row in board]
     selected_cell = None
     invalid_cells.clear()
     mistakes = 0
-    game_over = False
+    hint_cells.clear()
+    hints_used = 0
+    solved = False
     sol_check = False
     final_time = 0
     start_time = pygame.time.get_ticks()
 
 def return_to_menu():
-    global board, user_board, selected_cell, mistakes, game_over, sol_check, final_time, in_main_menu
+    global board, user_board, selected_cell, mistakes, hints_used, solved, sol_check, final_time, in_main_menu
 
     # Reset game state
     board = [[0] * GRID_SIZE for _ in range(GRID_SIZE)]
@@ -329,7 +383,9 @@ def return_to_menu():
     selected_cell = None
     invalid_cells.clear()
     mistakes = 0
-    game_over = False
+    hint_cells.clear()
+    hints_used = 0
+    solved = False
     sol_check = False
     final_time = 0
     in_main_menu = True
@@ -344,15 +400,17 @@ def handle_mouse_click(pos):
         handle_solve()
     elif MENU_BUTTON.collidepoint(pos):
         return_to_menu()
+    elif HINT_BUTTON.collidepoint(pos):
+        handle_hint()
     else:
         selected = get_clicked_cell(pos)
         if selected:
             selected_cell = selected
 
 def handle_keypress(event):
-    global mistakes, game_over, final_time
+    global mistakes, final_time, solved
     
-    if not selected_cell or game_over:
+    if not selected_cell or solved:
         return
         
     row, col = selected_cell
@@ -368,10 +426,14 @@ def handle_keypress(event):
             invalid_cells.add((row, col))
             mistakes += 1
             if mistakes >= MAX_MISTAKES:
-                game_over = True
                 final_time = (pygame.time.get_ticks() - start_time) // 1000
         else:
             invalid_cells.discard((row, col))
+            
+            if check_solved(user_board):
+                solved = True
+                final_time = (pygame.time.get_ticks() - start_time) // 1000
+
             
     elif event.key == pygame.K_BACKSPACE:
         user_board[row][col] = 0
