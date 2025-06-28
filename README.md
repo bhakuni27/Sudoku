@@ -2,7 +2,6 @@
 
 This is a Sudoku puzzle game built with **Python** and **Pygame**. It offers multiple difficulty levels, a built-in backtracking solver, limited hint support, and mistake tracking. A real-time timer monitors your progress as you solve the puzzle on a classic 9×9 Sudoku board.
 
----
 ## Screenshots & Features
 <div align="center">
 <table>
@@ -36,8 +35,6 @@ This is a Sudoku puzzle game built with **Python** and **Pygame**. It offers mul
 - **Auto Solver**: Solve the entire puzzle instantly using the `Solve` button.
 - **Timer**: Tracks how long you take to complete the puzzle.
 - **Reset/Menu Options**: Restart the puzzle or return to the main menu at any time.
-
----
 
 ## Prerequisites
 
